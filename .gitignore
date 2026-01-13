@@ -1,0 +1,50 @@
+# PlatformIO
+.pio/
+.vscode/
+.clang_complete
+.gcc-flags.json
+.project
+.cproject
+.build
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Build artifacts
+*.elf
+*.bin
+*.hex
+*.bin.* 
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+*.code-workspace
+.vscode-test/
+
+# Credentials (NEVER commit)
+src/config_local.h
+wifi_credentials.*
+secrets.*
+.env
+
+# Test outputs
+test/output/
+test/__pycache__/

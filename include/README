@@ -1,0 +1,12 @@
+# Include Directory
+
+This directory is reserved for project header files.
+
+## Usage
+Place custom library headers here that need to be accessible across multiple source files.
+
+## Current Status
+Empty - all headers currently in src/modules/
+
+## PlatformIO Convention
+PlatformIO automatically includes this directory in the build path.

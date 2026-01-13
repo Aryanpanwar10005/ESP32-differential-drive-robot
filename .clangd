@@ -1,0 +1,2 @@
+﻿CompileFlags:
+  Remove: [-mfix-esp32-psram-cache-issue, -mlongcalls, -fstrict-volatile-bitfields, -fno-tree-switch-conversion]

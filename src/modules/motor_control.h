@@ -1,8 +1,8 @@
 #ifndef MOTOR_CONTROL_H
 #define MOTOR_CONTROL_H
 
+#include "../config.h"
 #include <Arduino.h>
-#include "config.h"
 
 void motorInit();
 void setMotorSpeeds(int16_t leftSpeed, int16_t rightSpeed);

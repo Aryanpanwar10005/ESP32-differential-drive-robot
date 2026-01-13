@@ -1,357 +1,206 @@
-#define FIRMWARE_VERSION "v1.0.0"
-#define BUILD_DATE __DATE__ " " __TIME__
+# ESP32 Robot Firmware - Arduino IDE Version
 
-// Pin definitions
-#define LEFT_PWM 25
-#define LEFT_IN1 26
-#define LEFT_IN2 27
-#define RIGHT_PWM 32
-#define RIGHT_IN1 33
-#define RIGHT_IN2 14
-#define MOTOR_STBY 15
-#define GPS_RX 16
-#define GPS_TX 17
-#define SERVO_PIN 13
-#define LED_PIN 2
-#define SERIAL_BAUD 115200
+> ⚠️ **Note:** This is a **legacy single-file version** for Arduino IDE. For production deployment, use the **PlatformIO version** with modular architecture (see main [README.md](README.md)).
 
-// Config
-#define WIFI_SSID "YourNetwork"
-#define WIFI_PASSWORD "YourPassword"
-#define WEBSOCKET_SERVER_URL "ws://192.168.1.100:8080/ws"
-#define BLE_DEVICE_NAME "ESP32_Robot_001"
-#define BOT_ID "robot_001"
+## Overview
+
+Simplified all-in-one firmware for ESP32 differential drive robot. Includes motor control, GPS tracking, servo control, BLE authentication, and WebSocket communication in a single `.ino` file.
+
+## Hardware Requirements
+
+- ESP32-WROOM-32 development board
+- TB6612FNG motor driver
+- 2x DC motors (6V)
+- NEO-6M GPS module
+- SG90 servo motor
+- LED on GPIO 2
+- 7.4V battery + buck converters
+
+## Pin Configuration
+
+| Component       | ESP32 Pin |
+| --------------- | --------- |
+| Left Motor PWM  | GPIO 25   |
+| Left Motor IN1  | GPIO 26   |
+| Left Motor IN2  | GPIO 27   |
+| Right Motor PWM | GPIO 32   |
+| Right Motor IN1 | GPIO 33   |
+| Right Motor IN2 | GPIO 14   |
+| Motor STBY      | GPIO 15   |
+| GPS RX          | GPIO 16   |
+| GPS TX          | GPIO 17   |
+| Servo           | GPIO 13   |
+| Status LED      | GPIO 2    |
+
+## Arduino IDE Setup
+
+### 1. Install ESP32 Board Support
+
+1. Open Arduino IDE
+2. Go to **File → Preferences**
+3. Add to "Additional Boards Manager URLs":
+   ```
+   https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+   ```
+4. Go to **Tools → Board → Boards Manager**
+5. Search "ESP32" and install "esp32 by Espressif Systems"
+
+### 2. Install Required Libraries
+
+Go to **Tools → Manage Libraries** and install:
+
+- `ESP32Servo` by Kevin Harrington (v1.2.1+)
+- `TinyGPSPlus` by Mikal Hart (v1.0.3+)
+- `ArduinoWebsockets` by Gil Maimon (v0.5.3+)
+- `ArduinoJson` by Benoit Blanchon (v7.0.0+)
+
+### 3. Configure Board Settings
+
+- **Board:** ESP32 Dev Module
+- **Upload Speed:** 921600
+- **CPU Frequency:** 240MHz
+- **Flash Frequency:** 80MHz
+- **Flash Size:** 4MB
+- **Partition Scheme:** Default 4MB with spiffs
+- **Core Debug Level:** None (for production)
+- **Port:** Select your ESP32's COM port
+
+## Configuration
+
+Before uploading, edit these lines in `ESP32_Robot.ino`:
+
+```cpp
+// WiFi credentials (REQUIRED)
+#define WIFI_SSID "YourNetwork"        // Change this
+#define WIFI_PASSWORD "YourPassword"    // Change this
+
+// WebSocket server (REQUIRED)
+#define WEBSOCKET_SERVER_URL "ws://192.168.1.100:8080/ws"  // Your server IP
+
+// Robot identification
+#define BOT_ID "robot_001"              // Unique robot ID
+
+// ESP32-CAM stream URL (if using camera)
 #define ESP32_CAM_STREAM_URL "http://192.168.1.50/stream"
-#define GPS_UPDATE_INTERVAL 5000
-#define TELEMETRY_INTERVAL 2000
-#define LED_BLINK_INTERVAL 500
-#define LED_BLINK_ERROR 250
-#define MAX_SPEED 255
-#define SERVO_MIN_ANGLE 10
-#define SERVO_MAX_ANGLE 170
-#define NETWORK_RECONNECT_BASE 5000
+```
 
-#include <WiFi.h>
-#include <WebSocketsClient.h>
-#include <ArduinoJson.h>
-#include <ESP32Servo.h>
-#include <TinyGPSPlus.h>
+## Upload Instructions
 
-// ===== MODULES =====
-Servo laserServo;
-TinyGPSPlus gps;
-HardwareSerial gpsSerial(1);
+1. Connect ESP32 via USB
+2. Select correct Port in Tools menu
+3. Click Upload button (→)
+4. Wait for "Hard resetting via RTS pin..." message
+5. Open Serial Monitor (115200 baud)
 
-// Motor control
-void motorInit() {
-  pinMode(LEFT_PWM, OUTPUT);
-  pinMode(LEFT_IN1, OUTPUT);
-  pinMode(LEFT_IN2, OUTPUT);
-  pinMode(RIGHT_PWM, OUTPUT);
-  pinMode(RIGHT_IN1, OUTPUT);
-  pinMode(RIGHT_IN2, OUTPUT);
-  pinMode(MOTOR_STBY, OUTPUT);
-  digitalWrite(MOTOR_STBY, HIGH);
+## Expected Serial Output
+
+```
+=== ESP32 Robot v1.0.0 ===
+[MOTOR] Initialized
+[GPS] UART configured
+[SERVO] Initialized at 90°
+[BLE] Auth simulation enabled
+[MAIN] → WAIT_AUTH
+[MAIN] Waiting BLE auth...
+[BLE] Auth OK!
+[NETWORK] Connecting WiFi: YourNetwork
+[NETWORK] WiFi OK: 192.168.1.123
+[MAIN] → CONNECT_NETWORK
+[NETWORK] WebSocket CONNECTED
+[MAIN] → OPERATIONAL
+[GPS] Fix: {"lat":28.6139,"lon":77.2090,"fix":true}
+```
+
+## State Machine
+
+The firmware operates in 5 states:
+
+1. **INIT** → Hardware initialization
+2. **WAIT_AUTH** → LED blinks (500ms), waiting for BLE auth
+3. **CONNECT_NETWORK** → Connecting WiFi + WebSocket
+4. **OPERATIONAL** → Normal operation, sending telemetry
+5. **ERROR** → LED fast blink (250ms), auto-recovery after 10s
+
+## Control Commands (JSON)
+
+### Motor Control
+
+```json
+{"type": "control", "action": "forward", "speed": 150}
+{"type": "control", "action": "backward", "speed": 150}
+{"type": "control", "action": "left", "speed": 100}
+{"type": "control", "action": "right", "speed": 100}
+{"type": "control", "action": "stop"}
+```
+
+### Servo Control
+
+```json
+{ "type": "control", "action": "servo", "angle": 90 }
+```
+
+## Telemetry Output (JSON)
+
+Sent every 2 seconds when operational:
+
+```json
+{
+  "type": "telemetry",
+  "bot_id": "robot_001",
+  "gps": {
+    "lat": 28.613939,
+    "lon": 77.209021,
+    "fix": true
+  },
+  "camera_url": "http://192.168.1.50/stream",
+  "uptime": 123456
 }
+```
 
-void moveForward(int speed) {
-  analogWrite(LEFT_PWM, speed);
-  digitalWrite(LEFT_IN1, HIGH);
-  digitalWrite(LEFT_IN2, LOW);
-  analogWrite(RIGHT_PWM, speed);
-  digitalWrite(RIGHT_IN1, HIGH);
-  digitalWrite(RIGHT_IN2, LOW);
-}
+## Troubleshooting
 
-void moveBackward(int speed) {
-  analogWrite(LEFT_PWM, speed);
-  digitalWrite(LEFT_IN1, LOW);
-  digitalWrite(LEFT_IN2, HIGH);
-  analogWrite(RIGHT_PWM, speed);
-  digitalWrite(RIGHT_IN1, LOW);
-  digitalWrite(RIGHT_IN2, HIGH);
-}
+| Issue                 | Solution                                                 |
+| --------------------- | -------------------------------------------------------- |
+| Compilation errors    | Install all 4 required libraries                         |
+| Upload fails          | Check COM port, press BOOT button during upload          |
+| WiFi won't connect    | Verify SSID/password, check 2.4GHz network               |
+| Motors don't move     | Check wiring, verify STBY pin HIGH, test battery voltage |
+| No GPS fix            | Move outdoors, wait 30-60s for cold start                |
+| WebSocket disconnects | Verify server URL and port, check firewall               |
 
-void moveLeft(int speed) {
-  analogWrite(LEFT_PWM, speed/2);
-  digitalWrite(LEFT_IN1, LOW);
-  digitalWrite(LEFT_IN2, HIGH);
-  analogWrite(RIGHT_PWM, speed/2);
-  digitalWrite(RIGHT_IN1, HIGH);
-  digitalWrite(RIGHT_IN2, LOW);
-}
+## Limitations vs PlatformIO Version
 
-void moveRight(int speed) {
-  analogWrite(LEFT_PWM, speed/2);
-  digitalWrite(LEFT_IN1, HIGH);
-  digitalWrite(LEFT_IN2, LOW);
-  analogWrite(RIGHT_PWM, speed/2);
-  digitalWrite(RIGHT_IN1, LOW);
-  digitalWrite(RIGHT_IN2, HIGH);
-}
+This Arduino IDE version has some limitations:
 
-void stopMotors() {
-  analogWrite(LEFT_PWM, 0);
-  analogWrite(RIGHT_PWM, 0);
-  digitalWrite(LEFT_IN1, LOW);
-  digitalWrite(LEFT_IN2, LOW);
-  digitalWrite(RIGHT_IN1, LOW);
-  digitalWrite(RIGHT_IN2, LOW);
-}
+- ❌ No BLE authentication (simulated only)
+- ❌ No camera manager module
+- ❌ No unit tests
+- ❌ Single-file architecture (harder to maintain)
+- ❌ Uses analogWrite() instead of LEDC API
+- ✅ Easier for beginners
+- ✅ Quick testing and prototyping
 
-// GPS
-struct GPSData {
-  double latitude;
-  double longitude;
-  bool fix_valid;
-  unsigned long timestamp;
-};
+## Migration to PlatformIO
 
-GPSData currentGPSData = {0, 0, false, 0};
+For production use, migrate to the modular PlatformIO version:
 
-String getGPSJSON() {
-  DynamicJsonDocument doc(256);
-  doc["lat"] = currentGPSData.latitude;
-  doc["lon"] = currentGPSData.longitude;
-  doc["fix"] = currentGPSData.fix_valid;
-  String json;
-  serializeJson(doc, json);
-  return json;
-}
+```bash
+# Clone repository
+git clone https://github.com/Aryanpanwar10005/ESP32-differential-drive-robot.git
+cd ESP32-differential-drive-robot
 
-void gpsInit() {
-  gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
-}
+# Build and upload
+pio run -t upload
+pio device monitor
+```
 
-void gpsUpdate() {
-  while (gpsSerial.available() > 0) {
-    if (gps.encode(gpsSerial.read())) {
-      if (gps.location.isValid()) {
-        currentGPSData.latitude = gps.location.lat();
-        currentGPSData.longitude = gps.location.lng();
-        currentGPSData.fix_valid = true;
-        currentGPSData.timestamp = millis();
-      }
-    }
-  }
-}
+See main [README.md](README.md) for complete instructions.
 
-GPSData getGPSData() {
-  return currentGPSData;
-}
+## License
 
-// Servo
-void servoInit() {
-  laserServo.attach(SERVO_PIN);
-  laserServo.write(90);
-}
+MIT License - See [LICENSE](LICENSE) file
 
-void setLaserAngle(int angle) {
-  laserServo.write(angle);
-}
+## Support
 
-// Network
-WebSocketsClient webSocket;
-enum NetworkState { NETWORK_DISCONNECTED, NETWORK_CONNECTING, NETWORK_CONNECTED };
-NetworkState state = NETWORK_DISCONNECTED;
-unsigned long lastTelemetry = 0;
-unsigned long lastReconnectAttempt = 0;
-unsigned long reconnectDelay = NETWORK_RECONNECT_BASE;
-void (*commandCallback)(String, int) = nullptr;
-
-void onWebSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
-  switch(type) {
-    case WStype_DISCONNECTED:
-      Serial.println("[NETWORK] WebSocket DISCONNECTED");
-      state = NETWORK_DISCONNECTED;
-      stopMotors();
-      break;
-    case WStype_CONNECTED:
-      Serial.printf("[NETWORK] WebSocket CONNECTED\n");
-      state = NETWORK_CONNECTED;
-      reconnectDelay = NETWORK_RECONNECT_BASE;
-      break;
-    case WStype_TEXT:
-      {
-        DynamicJsonDocument doc(1024);
-        deserializeJson(doc, payload);
-        if (doc["type"] == "control") {
-          String action = doc["action"];
-          int value = doc["speed"] | doc["angle"] | 0;
-          if (commandCallback) commandCallback(action, value);
-        }
-      }
-      break;
-  }
-}
-
-void networkInit(String ssid, String password, String serverURL) {
-  Serial.printf("[NETWORK] Connecting WiFi: %s\n", ssid.c_str());
-  WiFi.begin(ssid.c_str(), password.c_str());
-  
-  unsigned long start = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - start < 10000) {
-    delay(100);
-    Serial.print(".");
-  }
-  
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n[NETWORK] WiFi OK: " + WiFi.localIP().toString());
-    webSocket.begin(serverURL.c_str());
-    webSocket.onEvent(onWebSocketEvent);
-    webSocket.setReconnectInterval(5000);
-  } else {
-    Serial.println("\n[NETWORK] WiFi timeout");
-  }
-}
-
-void networkLoop() {
-  webSocket.loop();
-  if (state == NETWORK_DISCONNECTED && millis() - lastReconnectAttempt > reconnectDelay) {
-    webSocket.begin(WEBSOCKET_SERVER_URL);
-    lastReconnectAttempt = millis();
-    reconnectDelay = min(reconnectDelay * 2, 8000UL);
-  }
-  if (state == NETWORK_CONNECTED && millis() - lastTelemetry >= TELEMETRY_INTERVAL) {
-    sendTelemetry();
-    lastTelemetry = millis();
-  }
-}
-
-bool isConnected() { return state == NETWORK_CONNECTED; }
-
-void sendTelemetry() {
-  DynamicJsonDocument doc(512);
-  doc["type"] = "telemetry";
-  doc["bot_id"] = BOT_ID;
-  doc["gps"]["lat"] = currentGPSData.latitude;
-  doc["gps"]["lon"] = currentGPSData.longitude;
-  doc["gps"]["fix"] = currentGPSData.fix_valid;
-  doc["camera_url"] = ESP32_CAM_STREAM_URL;
-  doc["uptime"] = millis();
-  String json;
-  serializeJson(doc, json);
-  webSocket.sendTXT(json);
-}
-
-void setCommandCallback(void (*cb)(String, int)) {
-  commandCallback = cb;
-}
-
-// BLE Auth (simplified)
-bool isAuthenticated = false;
-
-bool bleAuthInit(String name) {
-  Serial.println("[BLE] Auth simulation enabled");
-  return true;
-}
-
-bool isAuthenticated() { return isAuthenticated; }
-void disableBLE() { isAuthenticated = true; }
-
-// ===== MAIN STATE MACHINE =====
-enum SystemState { INIT, WAIT_AUTH, CONNECT_NETWORK, OPERATIONAL, ERROR };
-SystemState currentState = INIT;
-unsigned long lastGPSPrint = 0, lastLedBlink = 0, lastAuthPrint = 0, errorStartTime = 0;
-bool ledState = false;
-String errorReason = "";
-
-void handleCommand(String action, int value);
-
-void setup() {
-  Serial.begin(SERIAL_BAUD);
-  pinMode(LED_PIN, OUTPUT);
-  
-  Serial.printf("=== ESP32 Robot %s (%s) ===\n", FIRMWARE_VERSION, BUILD_DATE);
-  
-  motorInit();
-  gpsInit();
-  servoInit();
-  bleAuthInit(BLE_DEVICE_NAME);
-  
-  currentState = WAIT_AUTH;
-  Serial.println("[MAIN] → WAIT_AUTH");
-}
-
-void loop() {
-  unsigned long now = millis();
-  
-  gpsUpdate();
-  if (now - lastGPSPrint >= GPS_UPDATE_INTERVAL && currentGPSData.fix_valid) {
-    lastGPSPrint = now;
-    Serial.println("[GPS] Fix: " + getGPSJSON());
-  }
-  
-  switch (currentState) {
-    case WAIT_AUTH:
-      if (now - lastLedBlink >= LED_BLINK_INTERVAL) {
-        lastLedBlink = now;
-        ledState = !ledState;
-        digitalWrite(LED_PIN, ledState);
-      }
-      if (now - lastAuthPrint >= GPS_UPDATE_INTERVAL) {
-        lastAuthPrint = now;
-        Serial.println("[MAIN] Waiting BLE auth...");
-      }
-      if (isAuthenticated()) {
-        Serial.println("[BLE] Auth OK!");
-        digitalWrite(LED_PIN, HIGH);
-        disableBLE();
-        networkInit(WIFI_SSID, WIFI_PASSWORD, WEBSOCKET_SERVER_URL);
-        setCommandCallback(handleCommand);
-        currentState = CONNECT_NETWORK;
-        Serial.println("[MAIN] → CONNECT_NETWORK");
-      }
-      break;
-      
-    case CONNECT_NETWORK:
-      networkLoop();
-      if (isConnected()) {
-        currentState = OPERATIONAL;
-        Serial.println("[MAIN] → OPERATIONAL");
-      } else if (now - lastLedBlink > 30000) {
-        errorReason = "Network timeout";
-        currentState = ERROR;
-        errorStartTime = now;
-      }
-      break;
-      
-    case OPERATIONAL:
-      networkLoop();
-      currentGPSData = getGPSData();
-      if (!isConnected()) {
-        errorReason = "WebSocket lost";
-        currentState = ERROR;
-        errorStartTime = now;
-      }
-      break;
-      
-    case ERROR:
-      stopMotors();
-      if (now - lastLedBlink >= LED_BLINK_ERROR) {
-        lastLedBlink = now;
-        ledState = !ledState;
-        digitalWrite(LED_PIN, ledState);
-      }
-      if (now - errorStartTime >= 10000) {
-        Serial.println("[MAIN] Recovery...");
-        networkInit(WIFI_SSID, WIFI_PASSWORD, WEBSOCKET_SERVER_URL);
-        currentState = CONNECT_NETWORK;
-      }
-      break;
-  }
-}
-
-void handleCommand(String action, int value) {
-  if (currentState != OPERATIONAL) return;
-  
-  Serial.printf("[CMD] %s(%d)\n", action.c_str(), value);
-  value = constrain(value, 0, MAX_SPEED);
-  
-  if (action == "forward") moveForward(value);
-  else if (action == "backward") moveBackward(value);
-  else if (action == "left") moveLeft(value);
-  else if (action == "right") moveRight(value);
-  else if (action == "stop") stopMotors();
-  else if (action == "servo") setLaserAngle(constrain(value, SERVO_MIN_ANGLE, SERVO_MAX_ANGLE));
-}
+For issues or questions, open an issue on GitHub:
+https://github.com/Aryanpanwar10005/ESP32-differential-drive-robot/issues

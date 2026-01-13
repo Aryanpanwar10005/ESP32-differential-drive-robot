@@ -12,6 +12,8 @@ void moveForward(int16_t speed);
 void moveBackward(int16_t speed);
 void turnLeft(int16_t speed);
 void turnRight(int16_t speed);
+void brakeMotors(); // Active electrical brake (prevents rolling)
+void coastMotors(); // Passive coast to stop (original behavior)
 
 // Speed getters for testing
 int getCurrentLeftSpeed();

@@ -121,7 +121,7 @@ void loop() {
     // ✅ Monitor connection
     if (!networkManager.isConnected()) {
       errorReason = "WebSocket lost";
-      stopMotors();
+      brakeMotors(); // ✅ Active brake on disconnect
       printStateTransition(ERROR, errorReason.c_str());
       errorStartTime = currentMillis;
     }
@@ -131,7 +131,7 @@ void loop() {
     break;
 
   case ERROR:
-    stopMotors(); // ✅ Safety on every loop
+    brakeMotors(); // ✅ Active brake in error state
 
     // LED flash 250ms
     if (currentMillis - lastLedBlink >= 250) {

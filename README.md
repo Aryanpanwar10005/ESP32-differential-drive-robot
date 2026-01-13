@@ -101,6 +101,7 @@
     - LEDC PWM (5kHz, 8-bit resolution)
     - Non-blocking speed control (0-200 cap for safety)
     - Emergency stop functionality
+    - Active braking support
     - Separate channels for left/right motors
 
 2. **Servo Control Module** (`src/modules/servo_control.h/cpp`)
@@ -115,6 +116,7 @@
     - NEO-6M UART integration (9600 baud)
     - TinyGPS++ NMEA parser (GGA, RMC sentences)
     - 5-second update interval (per requirements)
+    - Stale-fix timeout (5s expiry)
     - GPSData struct with lat/lon/fix status
     - JSON output for telemetry
 
@@ -133,13 +135,32 @@
     - JSON telemetry every 2 seconds
     - Command parser for remote control
     - Exponential backoff reconnection (1s → 8s)
-    - Emergency motor stop on disconnect
+    - Emergency motor braking on disconnect
 
 6. **Camera Manager Module** (`src/modules/camera_manager.h/cpp`)
     - ESP32-CAM health monitoring
     - HTTP endpoint status check
     - Integrated with telemetry system
     - Stream URL: `http://192.168.1.50/stream`
+
+## Architecture Decisions
+
+### GPS Stale-Fix Protection
+
+GPS data includes a `lastUpdateMillis` timestamp. Fixes older than 5 seconds are marked invalid to prevent stale coordinate transmission during antenna disconnect or UART failure.
+
+### Motor Braking Strategy
+
+-   **Active Brake**: H-bridge inputs both HIGH, PWM disabled. Used in ERROR state and network disconnect for maximum stopping force.
+-   **Coast Stop**: H-bridge inputs both LOW, PWM disabled. Available for graceful stops during normal operation.
+
+### Network/GPS Coupling
+
+`NetworkManager` directly calls `gpsModule.getGPSData()` for simplicity and real-time guarantees. While this creates coupling, it's a pragmatic embedded systems trade-off.
+
+### Session-Based Authentication
+
+BLE authentication is session-only (lost on reboot). Persistent auth using NVS storage deferred to avoid key management complexity.
 
 ### ESP32-CAM Streaming Firmware
 

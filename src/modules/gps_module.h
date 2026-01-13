@@ -9,7 +9,7 @@ struct GPSData {
   float lat;
   float lon;
   bool fix_valid;
-  uint32_t timestamp;
+  unsigned long lastUpdateMillis;
 };
 
 class GPSModule {
@@ -18,6 +18,7 @@ private:
   TinyGPSPlus gps;
   unsigned long lastUpdate;
   unsigned long lastSend;
+  unsigned long lastValidFixMillis;
   GPSData currentData;
 
 public:

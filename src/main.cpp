@@ -7,13 +7,9 @@
 #include "modules/servo_control.h"
 #include <Arduino.h>
 
-enum SystemState {
-  INIT,
-  WAIT_AUTH,
-  CONNECT_NETWORK,
-  OPERATIONAL,
-  ERROR
-}; // Exact enum order checked
+// The SystemState enum is now defined in config.h
+
+CameraManager cameraManager;
 
 SystemState currentState = INIT;
 unsigned long previousMillis = 0;
@@ -32,8 +28,6 @@ void updateLED(int state);
 void stopMotors();
 void printStateTransition(SystemState nextState, const char *reason);
 
-// GPS data is defined in network.cpp and externed in network.h
-
 void setup() {
   Serial.begin(115200);
   Serial.println("\n\n=== ESP32 Robot v" FIRMWARE_VERSION " ===");
@@ -48,12 +42,21 @@ void setup() {
   servoControl.servoInit();
   bleAuth.bleAuthInit("ESP32_Robot_001");
 
+  if (cameraManager.init()) {
+    Serial.println("[Main] Camera initialized");
+  } else {
+    Serial.println("[Main] Camera init failed");
+  }
+
   Serial.printf("[MAIN] Heap: %dB\n", ESP.getFreeHeap());
   printStateTransition(WAIT_AUTH, "Boot complete");
 }
 
 void loop() {
   unsigned long currentMillis = millis();
+
+  // Handle camera streaming (non-blocking)
+  cameraManager.loop();
 
   switch (currentState) {
   case INIT:
@@ -101,39 +104,41 @@ void loop() {
       ledState = !ledState;
       digitalWrite(LED_PIN, ledState);
     }
-
-    // Timeout if needed
     break;
 
   case OPERATIONAL:
-    networkManager.networkLoop();
-    cameraManager.cameraLoop();
+    // Camera start (only once after BLE auth)
+    static bool cameraStarted = false;
+    if (!cameraStarted && bleAuth.isAuthenticated()) {
+      cameraManager.setAuthState(true);
+      cameraManager.startServer(81);
+      cameraStarted = true;
+    }
 
-    // ✅ CRITICAL FIX: GPS data update BEFORE telemetry
+    networkManager.networkLoop();
+
+    // Teleometry handled in network loop usually, but main loop handles GPS
+    // update
     currentGPSData = gpsModule.getGPSData();
 
-    // ✅ Telemetry 2s
     if (currentMillis - lastTelemetry >= TELEMETRY_INTERVAL) {
       lastTelemetry = currentMillis;
       networkManager.sendTelemetry();
     }
 
-    // ✅ Monitor connection
     if (!networkManager.isConnected()) {
       errorReason = "WebSocket lost";
-      brakeMotors(); // ✅ Active brake on disconnect
+      brakeMotors();
       printStateTransition(ERROR, errorReason.c_str());
       errorStartTime = currentMillis;
     }
 
-    // Keep LED ON when operational
     digitalWrite(LED_PIN, HIGH);
     break;
 
   case ERROR:
-    brakeMotors(); // ✅ Active brake in error state
+    brakeMotors();
 
-    // LED flash 250ms
     if (currentMillis - lastLedBlink >= 250) {
       lastLedBlink = currentMillis;
       ledState = !ledState;
@@ -145,7 +150,6 @@ void loop() {
       Serial.printf("[MAIN] ERROR: %s. Recovering...\n", errorReason.c_str());
     }
 
-    // ✅ 10s recovery
     if (currentMillis - errorStartTime >= 10000) {
       Serial.println("[MAIN] Recovery...");
       networkManager.networkInit(WIFI_SSID, WIFI_PASSWORD,
@@ -156,7 +160,6 @@ void loop() {
     break;
   }
 
-  // Always update GPS in background
   gpsModule.gpsUpdate();
 }
 

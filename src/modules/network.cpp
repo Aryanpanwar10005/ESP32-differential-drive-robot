@@ -1,6 +1,5 @@
 #include "network.h"
 #include "ble_auth.h"
-#include "camera_manager.h"
 #include "gps_module.h"
 #include "motor_control.h"
 
@@ -118,24 +117,42 @@ void NetworkManager::networkLoop() {
 
 bool NetworkManager::isConnected() { return state == NETWORK_CONNECTED; }
 
+#include <stdio.h>
+
+extern SystemState currentState;
+
 void NetworkManager::sendTelemetry() {
   JsonDocument doc;
   GPSData data = gpsModule.getGPSData();
 
-  doc["type"] = "telemetry";
-  doc["bot_id"] = BOT_ID;
-  doc["authenticated"] = bleAuth.isAuthenticated();
-  doc["gps"]["lat"] = data.lat;
-  doc["gps"]["lon"] = data.lon;
-  doc["gps"]["fix"] = data.fix_valid;
+  // Bot ID for scalability (PDF requirement)
+#ifdef BOT_ID_FROM_MAC
+  uint8_t mac[6];
+  WiFi.macAddress(mac);
+  char botId[32];
+  snprintf(botId, sizeof(botId), "ESP32_%02X%02X%02X", mac[3], mac[4], mac[5]);
+  doc["bot_id"] = botId;
+#else
+  doc["bot_id"] = BOT_ID_DEFAULT;
+#endif
 
-  // Camera status
-  doc["camera"]["online"] = cameraManager.isCameraOnline();
-  doc["camera"]["stream_url"] = cameraManager.getStreamURL();
+  doc["timestamp"] = millis();
 
-  doc["camera_url"] = ESP32_CAM_STREAM_URL;
-  doc["uptime"] = millis();
-  doc["free_heap"] = ESP.getFreeHeap();
+  // GPS Data
+  doc["gps"]["latitude"] = data.lat;
+  doc["gps"]["longitude"] = data.lon;
+  doc["gps"]["fix_valid"] = data.fix_valid;
+
+  // Network Data
+  doc["network"]["connected"] = (state == NETWORK_CONNECTED);
+  doc["network"]["rssi"] = WiFi.RSSI();
+  doc["network"]["reconnect_count"] = 0; // Simplified for now
+
+  // System State
+  const char *stateNames[] = {"INIT", "WAIT_AUTH", "CONNECT_NETWORK",
+                              "OPERATIONAL", "ERROR"};
+  doc["state"] = stateNames[currentState];
+  doc["ble_authenticated"] = bleAuth.isAuthenticated();
 
   String telemetry;
   serializeJson(doc, telemetry);

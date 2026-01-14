@@ -53,3 +53,4 @@ test/__pycache__/
 
 # Arduino IDE legacy build (conflicts with PlatformIO)
 legacy/
+".cache/" 

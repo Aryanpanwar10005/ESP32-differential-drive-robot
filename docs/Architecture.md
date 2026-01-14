@@ -6,17 +6,24 @@ The ESP32 Differential Drive Robot is built on a modular, event-driven architect
 
 ---
 
+## Architecture Overview (Dual-Processor Model)
+
+The system utilizes a dual-processor architecture to maintain high performance and isolation:
+
+1. **Main ESP32 (WROOM/Dev):** Handles high-level logic, BLE authentication, motor/servo control, GPS parsing, and WebSocket telemetry communication.
+2. **ESP32-CAM (Separate Module):** Dedicated to high-speed MJPEG image capture and streaming. This module runs independent firmware configured for the specific camera pins (AI-Thinker) and communicates its status/URL to the main processor.
+
+---
+
 ## Security Model
 
 ### BLE Authentication Gate
 
--   **Requirement:** PDF mandates BLE authentication before control/video access
--   **Implementation:** State machine blocks OPERATIONAL state until BLE auth succeeds
--   **Session Model:** BLE authentication uses session-based trust; credentials are not persisted across reboot
--   **Enforcement Points:**
-    -   Motor commands rejected in IDLE state
-    -   Camera stream returns 403 before authentication
-    -   Telemetry transmission starts only after auth
+-   **Requirement:** PDF mandates BLE authentication before control/video access.
+-   **Multi-Layer Enforcement:**
+    -   **State Gate:** The main state machine blocks transitions to `OPERATIONAL` until `bleAuth.isAuthenticated()` is true.
+    -   **Function Gate:** Crucial motor functions (`setMotorSpeeds`) perform a redundant check on the BLE auth flag at the code level ("Belt and Suspenders" approach).
+    -   **Session Model:** Session-based trust; RAM optimization disables the BLE stack after successful authentication (freeing ~60KB RAM).
 
 ### Network Security
 

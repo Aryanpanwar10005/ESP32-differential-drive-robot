@@ -31,7 +31,10 @@ void NetworkManager::onWebSocketEvent(websockets::WebsocketsEvent event,
   }
 }
 
+extern unsigned long lastServerHeartbeat;
+
 void NetworkManager::onWebSocketMessage(websockets::WebsocketsMessage message) {
+  lastServerHeartbeat = millis(); // Refresh watchdog timer
   Serial.printf("[NETWORK] Received: %s\n", message.data().c_str());
 
   // Parse JSON command

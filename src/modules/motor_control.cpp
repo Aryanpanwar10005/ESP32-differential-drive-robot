@@ -1,4 +1,5 @@
 #include "motor_control.h"
+#include "ble_auth.h" // CRITICAL: Authentication gate
 #include <Arduino.h>
 #include <driver/ledc.h>
 
@@ -59,6 +60,18 @@ void motorInit() {
 }
 
 void setMotorSpeeds(int16_t leftSpeed, int16_t rightSpeed) {
+  // CRITICAL SECURITY CHECK: BLE Auth required for motion
+  // Note: bleAuth.disableBLE() frees RAM but isAuthenticated() remains true
+  if (!bleAuth.isAuthenticated()) {
+    static unsigned long lastAuthWarning = 0;
+    if (millis() - lastAuthWarning > 5000) {
+      Serial.println("[MOTOR] REJECTED: BLE Authentication Required");
+      lastAuthWarning = millis();
+    }
+    stopMotors();
+    return;
+  }
+
   if (!motorsEnabled)
     return;
 

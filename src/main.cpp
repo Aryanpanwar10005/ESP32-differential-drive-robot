@@ -19,6 +19,7 @@ unsigned long lastLedBlink = 0;
 unsigned long lastAuthPrint = 0;
 unsigned long errorStartTime = 0;
 unsigned long lastErrorPrint = 0;
+unsigned long lastServerHeartbeat = 0; // CRITICAL: Watchdog for fault recovery
 bool ledState = false;
 bool networkInitialized = false;
 String errorReason = "";
@@ -42,13 +43,15 @@ void setup() {
   servoControl.servoInit();
   bleAuth.bleAuthInit("ESP32_Robot_001");
 
+  // If ESP32-CAM is a separate module, handleManager only relays status
   if (cameraManager.init()) {
-    Serial.println("[Main] Camera initialized");
+    Serial.println("[Main] Camera initialization initiated");
   } else {
-    Serial.println("[Main] Camera init failed");
+    Serial.println("[Main] Camera not found or initialized as stub");
   }
 
   Serial.printf("[MAIN] Heap: %dB\n", ESP.getFreeHeap());
+  lastServerHeartbeat = millis(); // Initialize heartbeat
   printStateTransition(WAIT_AUTH, "Boot complete");
 }
 
@@ -84,6 +87,7 @@ void loop() {
                                  WEBSOCKET_SERVER_URL);
       networkManager.setCommandCallback(handleCommand);
       networkInitialized = true;
+      lastServerHeartbeat = millis(); // Reset heartbeat after auth
       printStateTransition(CONNECT_NETWORK, "Auth complete");
     }
     break;
@@ -92,6 +96,7 @@ void loop() {
     if (networkInitialized) {
       networkManager.networkLoop();
       if (networkManager.isConnected()) {
+        lastServerHeartbeat = millis(); // Reset heartbeat on connection
         printStateTransition(OPERATIONAL, "Network ready");
         lastTelemetry = currentMillis;
         return;
@@ -103,6 +108,13 @@ void loop() {
       lastLedBlink = currentMillis;
       ledState = !ledState;
       digitalWrite(LED_PIN, ledState);
+    }
+
+    // Timeout for connection
+    if (currentMillis - lastServerHeartbeat >= 30000) {
+      errorReason = "WiFi/WS Connection Timeout";
+      printStateTransition(ERROR, errorReason.c_str());
+      errorStartTime = currentMillis;
     }
     break;
 
@@ -117,8 +129,15 @@ void loop() {
 
     networkManager.networkLoop();
 
-    // Teleometry handled in network loop usually, but main loop handles GPS
-    // update
+    // CRITICAL: Heartbeat Watchdog
+    // networkManager should update lastServerHeartbeat on any received message
+    if (currentMillis - lastServerHeartbeat > 5000) {
+      errorReason = "Deadman's Switch: Server Heartbeat Lost";
+      brakeMotors();
+      printStateTransition(ERROR, errorReason.c_str());
+      errorStartTime = currentMillis;
+    }
+
     currentGPSData = gpsModule.getGPSData();
 
     if (currentMillis - lastTelemetry >= TELEMETRY_INTERVAL) {
@@ -151,10 +170,13 @@ void loop() {
     }
 
     if (currentMillis - errorStartTime >= 10000) {
-      Serial.println("[MAIN] Recovery...");
+      Serial.println("[MAIN] Recovery attempt...");
+      WiFi.disconnect();
+      delay(10); // Minimal blocking for stability during recovery
       networkManager.networkInit(WIFI_SSID, WIFI_PASSWORD,
                                  WEBSOCKET_SERVER_URL);
       networkManager.setCommandCallback(handleCommand);
+      lastServerHeartbeat = millis();
       printStateTransition(CONNECT_NETWORK, "Recovery");
     }
     break;

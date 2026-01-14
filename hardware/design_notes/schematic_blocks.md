@@ -94,6 +94,24 @@
 -   Error LED (red, GPIO 5, 1kΩ resistor)
 -   User LED (optional, GPIO 2)
 
+---
+
+## ESP32 Variant Support
+
+Two hardware variants are supported by this design framework:
+
+-   **ESP32-WROOM-32**
+
+    -   External camera optional
+    -   Used for non-camera firmware builds
+
+-   **ESP32-CAM (AI-Thinker)**
+    -   Integrated OV2640 camera
+    -   Requires PSRAM
+    -   Used to satisfy Round-1 camera streaming requirement
+
+---
+
 ## Block 9: Ground Architecture (CRITICAL)
 
 **Ground Separation Strategy:**

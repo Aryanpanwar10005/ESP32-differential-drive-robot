@@ -554,12 +554,85 @@ Comprehensive documentation provided:
 -   ✅ Test instructions with expected outputs
 -   ✅ Acceptance test verification table
 
-### Hardware Design (Phase 2) ✅
+### 📐 Hardware Design (Phase 2)
 
--   ✅ PCB design framework prepared
--   ✅ Schematic and layout requirements documented
--   ✅ Power architecture and thermal rationale
--   ✅ Manufacturing-ready BOM and test procedure
+### Schematic Reference
+
+**[View Schematic PDF](docs/Schematic_Reference_ESP32_Robot_v1.0.pdf)**
+
+![Schematic Overview](docs/schematic_thumbnail.png)
+_ESP32 Differential Drive Robot Controller - Reference Design_
+
+### Hardware Specifications
+
+| Component            | Part Number          | Specifications                           |
+| -------------------- | -------------------- | ---------------------------------------- |
+| **Microcontroller**  | ESP32-WROOM-32       | Dual-core 240MHz, 520KB RAM, WiFi+BLE    |
+| **Motor Driver**     | TB6612FNG            | Dual H-bridge, 1.2A/channel, PWM control |
+| **GPS Module**       | NEO-6M               | UART 9600 baud, NMEA sentences           |
+| **Servo Motor**      | SG90                 | 5V powered, 10-170° range                |
+| **Camera**           | ESP32-CAM (separate) | AI-Thinker, OV2640, MJPEG streaming      |
+| **Battery**          | 7.4V 2S LiPo         | 1000mAh minimum                          |
+| **Buck Converter 1** | LM2596               | 7.4V → 5V @ 3A                           |
+| **Buck Converter 2** | AMS1117              | 5V → 3.3V @ 800mA                        |
+
+### Critical Design Features
+
+✅ **Status LED on GPIO2** - Firmware compatible  
+✅ **Servo powered from 5V** - SG90 requirement (4.8-6V)  
+✅ **Reverse polarity protection** - P-channel MOSFET on +BATT  
+✅ **Programming interface** - USB-UART (CP2102) or FTDI header  
+✅ **Proper decoupling** - All ICs have local bypass capacitors  
+✅ **Power domain separation** - Motor power isolated from logic
+
+### Pin Assignments (Hardware ↔ Firmware Validated)
+
+| Function        | ESP32 GPIO | Hardware Connection | Config.h Define |
+| --------------- | ---------- | ------------------- | --------------- |
+| Left Motor PWM  | **GPIO25** | TB6612FNG PWMA      | `LEFTPWM 25`    |
+| Left Motor IN1  | **GPIO26** | TB6612FNG AIN1      | `LEFTIN1 26`    |
+| Left Motor IN2  | **GPIO27** | TB6612FNG AIN2      | `LEFTIN2 27`    |
+| Right Motor PWM | **GPIO32** | TB6612FNG PWMB      | `RIGHTPWM 32`   |
+| Right Motor IN1 | **GPIO33** | TB6612FNG BIN1      | `RIGHTIN1 33`   |
+| Right Motor IN2 | **GPIO14** | TB6612FNG BIN2      | `RIGHTIN2 14`   |
+| Motor STBY      | **GPIO15** | TB6612FNG STBY      | `MOTORSTBY 15`  |
+| Servo Signal    | **GPIO13** | SG90 PWM            | `SERVOPIN 13`   |
+| GPS RX          | **GPIO16** | GPS TX              | `GPSRXPIN 16`   |
+| GPS TX          | **GPIO17** | GPS RX              | `GPSTXPIN 17`   |
+| Status LED      | **GPIO2**  | LED + 1kΩ           | `LEDPIN 2`      |
+| Reset Button    | **EN**     | Pull-up + 10µF cap  | -               |
+| Boot Button     | **GPIO0**  | Pull-up + button    | -               |
+
+### Power Distribution
+
++BATT 7.4V (2S LiPo)
+│
+├─ [P-FET Reverse Polarity Protection]
+├─ [1000µF Bulk Capacitor]
+│
+├─ Buck Converter 1 (7.4V → 5V @ 3A)
+│ ├─ Servo Motor (5V)
+│ ├─ USB-UART Programming (5V)
+│ └─ Buck Converter 2 (5V → 3.3V @ 800mA)
+│ ├─ ESP32 VDD (3.3V)
+│ └─ TB6612FNG VCC logic (3.3V)
+│
+└─ TB6612FNG VM motor power (7.4V direct)
+
+### Design Status
+
+| Phase                   | Status      | Notes                                  |
+| ----------------------- | ----------- | -------------------------------------- |
+| **Round 1: Firmware**   | ✅ Complete | Tested, modular, production-ready      |
+| **Round 2: Schematic**  | ✅ Complete | Reference design, PDF requirements met |
+| **Round 3: PCB Layout** | ⏳ Pending  | Next phase after schematic approval    |
+
+### Documentation
+
+-   **Schematic Reference:** [PDF](docs/Schematic_Reference_ESP32_Robot_v1.0.pdf)
+-   **Pin Mapping:** [Markdown](docs/Pin_Mapping.md)
+-   **BOM (Bill of Materials):** See schematic PDF
+-   **Assembly Notes:** Power-on sequence, safety checks
 
 ---
 

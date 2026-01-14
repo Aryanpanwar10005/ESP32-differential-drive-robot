@@ -1,17 +1,18 @@
 # Pin Mapping - Hardware GPIO Assignments
 
-**Note:** GPIOs may differ for custom PCB; this mapping reflects the reference prototype.
+**Note:** This mapping reflects the Phase 2 Reference Schematic for the ESP32 Differential Drive Robot.
 
-## Motor Control (L298N H-Bridge)
+## Motor Control (TB6612FNG)
 
-| Function        | GPIO Pin | Notes             |
-| --------------- | -------- | ----------------- |
-| Left Motor PWM  | GPIO 25  | LEDC Channel 0    |
-| Left Motor IN1  | GPIO 26  | Direction control |
-| Left Motor IN2  | GPIO 27  | Direction control |
-| Right Motor PWM | GPIO 32  | LEDC Channel 1    |
-| Right Motor IN1 | GPIO 33  | Direction control |
-| Right Motor IN2 | GPIO 14  | Direction control |
+| Function        | GPIO Pin | Hardware Connection | Notes                      |
+| --------------- | -------- | ------------------- | -------------------------- |
+| Left Motor PWM  | GPIO 25  | TB6612FNG PWMA      | LEDC Channel 0             |
+| Left Motor IN1  | GPIO 26  | TB6612FNG AIN1      | Direction control          |
+| Left Motor IN2  | GPIO 27  | TB6612FNG AIN2      | Direction control          |
+| Right Motor PWM | GPIO 32  | TB6612FNG PWMB      | LEDC Channel 1             |
+| Right Motor IN1 | GPIO 33  | TB6612FNG BIN1      | Direction control          |
+| Right Motor IN2 | GPIO 14  | TB6612FNG BIN2      | Direction control          |
+| Motor STBY      | GPIO 15  | TB6612FNG STBY      | Must be HIGH for operation |
 
 ## Servo Control (Laser Aiming)
 
@@ -21,55 +22,31 @@
 
 ## GPS Module (UART)
 
-| Function          | GPIO Pin | Notes          |
-| ----------------- | -------- | -------------- |
-| GPS RX (ESP32 TX) | GPIO 17  | UART2 TX       |
-| GPS TX (ESP32 RX) | GPIO 16  | UART2 RX       |
-| GPS Baud Rate     | 9600     | NMEA sentences |
+| Function          | GPIO Pin | Hardware Connection | Notes          |
+| ----------------- | -------- | ------------------- | -------------- |
+| GPS RX (ESP32 RX) | GPIO 16  | GPS TX              | UART2 RX       |
+| GPS TX (ESP32 TX) | GPIO 17  | GPS RX              | UART2 TX       |
+| GPS Baud Rate     | 9600     | -                   | NMEA sentences |
 
-## BLE (Built-in)
+## Status Indicator
 
-| Function       | Notes                     |
-| -------------- | ------------------------- |
-| BLE Radio      | ESP32 internal peripheral |
-| Authentication | Custom service UUID       |
+| Function   | GPIO Pin | Notes                      |
+| ---------- | -------- | -------------------------- |
+| Status LED | GPIO 2   | Onboard LED / External LED |
 
-## Wi-Fi (Built-in)
+## Power Architecture
 
-| Function    | Notes                 |
-| ----------- | --------------------- |
-| Wi-Fi Radio | ESP32 internal 2.4GHz |
-| Antenna     | PCB trace or external |
+| Function       | Voltage | Source                  | Notes                 |
+| -------------- | ------- | ----------------------- | --------------------- |
+| Main Battery   | 7.4V    | 2S LiPo                 | High current path     |
+| Logic Rail (1) | 5V      | Buck Converter (LM2596) | For Servo & ESP32 Reg |
+| Logic Rail (2) | 3.3V    | Buck/LDO (AMS1117)      | For ESP32 & Sensors   |
+| Motor Supply   | 7.4V    | Direct from Battery     | Via TB6612FNG VM      |
 
-## Camera (ESP32-CAM Only)
+## Safety & Critical Design Notes
 
-**For ESP32-CAM (AI-Thinker) builds:**
-
-| Function     | GPIO Pin                    | Notes                |
-| ------------ | --------------------------- | -------------------- |
-| Camera D0-D7 | GPIO 5,18,19,21,36,39,34,35 | Data lines           |
-| Camera XCLK  | GPIO 0                      | Master clock         |
-| Camera PCLK  | GPIO 22                     | Pixel clock          |
-| Camera VSYNC | GPIO 25                     | Vertical sync        |
-| Camera HREF  | GPIO 23                     | Horizontal reference |
-| Camera SDA   | GPIO 26                     | I2C data             |
-| Camera SCL   | GPIO 27                     | I2C clock            |
-| Camera PWDN  | GPIO 32                     | Power down           |
-| Camera RESET | -1                          | Not used             |
-
-**Note:** Regular ESP32 builds do not use camera pins.
-
-## Power
-
-| Function    | Voltage | Notes                 |
-| ----------- | ------- | --------------------- |
-| ESP32 Logic | 3.3V    | Regulated from 5V     |
-| Motors      | 5-12V   | Separate power domain |
-| Servo       | 5V      | From motor supply     |
-| GPS         | 3.3V    | From ESP32 regulator  |
-
-## Safety Notes
-
--   Motor power domain separated from ESP32 logic
--   Decoupling capacitors on all Vcc pins
--   Flyback diodes on motor outputs (internal to L298N)
+-   **Reverse Polarity Protection:** P-channel MOSFET on BATT+ input.
+-   **Bulk Decoupling:** 1000µF capacitor on the main 7.4V rail.
+-   **Servo Isolation:** Servo is powered from the 5V rail to avoid brownouts on the 3.3V logic rail.
+-   **Motor Isolation:** Motor power (VM) is separate from logic power (VCC).
+-   **STBY Pin:** GPIO 15 must be driven HIGH in software to enable the motor driver.

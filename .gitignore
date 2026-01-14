@@ -33,6 +33,7 @@ Thumbs.db
 # Logs
 *.log
 logs/
+# Local build/debug artifacts
 build_*.txt
 
 # IDE

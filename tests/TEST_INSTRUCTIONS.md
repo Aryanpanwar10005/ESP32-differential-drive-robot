@@ -107,5 +107,3 @@ pio run -e esp32dev -t upload -t monitor
 
 **✅ PASS criteria**: All tests complete without errors + expected serial output.
 
----
-*Built for internship submission - professional grade testing suite*

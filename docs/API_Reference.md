@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the command and telemetry format for the ESP32 differential drive robot, satisfying PDF Round-1 deliverable requirements.
+This document defines the command and telemetry format for the ESP32 differential drive robot.
 
 ---
 

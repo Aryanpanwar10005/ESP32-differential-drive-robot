@@ -108,7 +108,7 @@ Two hardware variants are supported by this design framework:
 -   **ESP32-CAM (AI-Thinker)**
     -   Integrated OV2640 camera
     -   Requires PSRAM
-    -   Used to satisfy Round-1 camera streaming requirement
+    -   Provides the camera stream
 
 ---
 

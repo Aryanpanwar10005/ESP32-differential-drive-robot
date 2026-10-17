@@ -52,6 +52,3 @@
 -   ✅ **BOM Integration**: Finalized component specifications for motors, drivers, and power rails.
 -   ✅ **Verified Pin Mapping**: 100% firmware-compatible GPIO assignments for TB6612FNG.
 
----
-
-**🎓 Built for internship submission • Production-ready • Zero compromises**

@@ -1,16 +1,15 @@
 # PCB Design - ESP32 Differential Drive Robot
 
-> ⚠️ Phase-2 Status Notice
+> Status
 >
-> This directory contains a complete **PCB design framework and documentation**
-> aligned with PDF Round-2 requirements.
+> This directory contains PCB design notes and documentation.
 >
 > Final schematic capture and PCB layout are intended to be completed in KiCad
 > as the next execution step.
 
 ## Overview
 
-Complete hardware design satisfying PDF Round-2 requirements for embedded systems internship.
+Hardware design notes for the robot: components, power and pin mapping. The PCB layout and Gerber folders are placeholders.
 
 ## Design Specifications
 
